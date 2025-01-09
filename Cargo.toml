@@ -12,15 +12,15 @@ license = "Apache-2.0"
 name = "sysrepo"
 readme = "README.md"
 repository = "https://github.com/sjtakada/sysrepo-rs"
-version = "0.4.0"
+version = "0.4.1"
 
 [build-dependencies]
-bindgen = "0.59.2"
+bindgen = "0.71.1"
 
 [dependencies]
-libc = "0.2.121"
-yang2 = "0.7"
-libyang2-sys = "0.6"
+libc = "0.2.169"
+yang2 = "0.17"
+libyang2-sys = "0.9.0"
 
 [workspace]
 members = [

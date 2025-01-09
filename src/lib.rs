@@ -289,24 +289,24 @@ pub struct SrValueSlice {
     values: *mut sr_val_t,
 
     /// Length of this slice.
-    len: u64,
+    len: usize,
 
     /// Owned flag.
     owned: bool,
 }
 
 impl SrValueSlice {
-    pub fn new(capacity: u64, owned: bool) -> Self {
+    pub fn new(capacity: usize, owned: bool) -> Self {
         Self {
             values: unsafe {
-                libc::malloc(mem::size_of::<sr_val_t>() * capacity as usize) as *mut sr_val_t
+                libc::malloc(mem::size_of::<sr_val_t>() * capacity) as *mut sr_val_t
             },
             len: capacity,
             owned: owned,
         }
     }
 
-    pub fn from(values: *mut sr_val_t, len: u64, owned: bool) -> Self {
+    pub fn from(values: *mut sr_val_t, len: usize, owned: bool) -> Self {
         Self {
             values: values,
             len: len,
@@ -328,7 +328,7 @@ impl SrValueSlice {
         self.values
     }
 
-    pub fn len(&self) -> u64 {
+    pub fn len(&self) -> usize {
         self.len
     }
 
@@ -340,7 +340,7 @@ impl SrValueSlice {
         let xpath = str_to_cstring(&xpath)?;
         let xpath_ptr = xpath.as_ptr();
 
-        let mut val = self.at_mut(index) as *mut sr_val_t;
+        let val = self.at_mut(index) as *mut sr_val_t;
         unsafe {
             (*val).xpath = libc::strdup(xpath_ptr);
             (*val).type_ = sr_val_type_t_SR_INT64_T;
@@ -513,14 +513,14 @@ impl SrSession {
     }
 
     /// Get tree from given XPath.
-    pub fn get_data(
-        &mut self,
-        context: &Arc<Context>,
+    pub fn get_data<'a>(
+        &'a mut self,
+        context: &'a Arc<Context>,
         xpath: &str,
         max_depth: Option<u32>,
         timeout: Option<Duration>,
         opts: u32
-    ) -> Result<DataTree, i32> {
+    ) -> Result<DataTree<'a>, i32> {
         let xpath = str_to_cstring(xpath)?;
         let max_depth = max_depth.unwrap_or(0);
         let timeout_ms = timeout.map_or(0, |timeout| timeout.as_millis() as u32);
@@ -569,7 +569,7 @@ impl SrSession {
     ) -> Result<SrValueSlice, i32> {
         let xpath = str_to_cstring(xpath)?;
         let timeout_ms = timeout.map_or(0, |timeout| timeout.as_millis() as u32);
-        let mut values_count: u64 = 0;
+        let mut values_count: usize = 0;
         let mut values: *mut sr_val_t = unsafe { zeroed::<*mut sr_val_t>() };
 
         let rc = unsafe {
@@ -678,7 +678,7 @@ impl SrSession {
         notif_type: sr_ev_notif_type_t,
         path: *const c_char,
         values: *const sr_val_t,
-        values_cnt: size_t,
+        values_cnt: libc::size_t,
         timestamp: *mut timespec,
         private_data: *mut c_void,
     ) where
@@ -749,11 +749,11 @@ impl SrSession {
         sub_id: u32,
         op_path: *const c_char,
         input: *const sr_val_t,
-        input_cnt: size_t,
+        input_cnt: libc::size_t,
         event: sr_event_t,
         request_id: u32,
         output: *mut *mut sr_val_t,
-        output_cnt: *mut u64,
+        output_cnt: *mut usize,
         private_data: *mut c_void,
     ) -> i32
     where
@@ -960,13 +960,13 @@ impl SrSession {
     ) -> Result<SrValueSlice, i32> {
         let path = str_to_cstring(path)?;
         let (input, input_cnt) = match input {
-            Some(mut input) => (input.as_mut_ptr(), input.len() as u64),
+            Some(mut input) => (input.as_mut_ptr(), input.len() as usize),
             None => (std::ptr::null_mut(), 0),
         };
         let timeout = timeout.map_or(0, |timeout| timeout.as_millis() as u32);
 
         let mut output: *mut sr_val_t = unsafe { zeroed::<*mut sr_val_t>() };
-        let mut output_count: u64 = 0;
+        let mut output_count: usize = 0;
 
         let rc = unsafe {
             sr_rpc_send(
